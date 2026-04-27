@@ -105,8 +105,18 @@ async function main() {
       await sleep(1000);
     }
     
-    // 检查验证码
-    const captcha = await evaluate(ws, `!!document.querySelector('.tc-slider-normal, .captcha, [class*="captcha"]')`);
+    // 检查验证码（必须在视口内且可见才算真实触发，排除知网常驻离屏组件）
+    const captcha = await evaluate(ws, `(function() {
+      const el = document.querySelector('[class*="tencent-captcha-dy__content"]');
+      if (!el) return false;
+      const rect = el.getBoundingClientRect();
+      const inViewport = rect.width > 0 && rect.height > 0
+        && rect.top >= 0 && rect.left >= 0
+        && rect.bottom <= window.innerHeight && rect.right <= window.innerWidth;
+      if (!inViewport) return false;
+      const s = window.getComputedStyle(el);
+      return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+    })()`);
     if (captcha) {
       console.log('CAPTCHA detected - writing partial results and stopping');
       break;

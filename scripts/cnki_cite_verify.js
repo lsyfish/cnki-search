@@ -8,6 +8,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 
 const OUTPUT_FILE = path.join(__dirname, 'cnki_verify_results.json');
 
@@ -106,6 +107,29 @@ async function evaluate(ws, expr) {
 }
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function ensureChrome() {
+  try {
+    await getTabList();
+    return;
+  } catch (e) {}
+  console.log('Chrome not detected, launching...');
+  const paths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+  const chromePath = paths.find(p => { try { fs.accessSync(p); return true; } catch { return false; } });
+  if (!chromePath) throw new Error('Chrome not found. Please launch manually with --remote-debugging-port=9222');
+  spawn(chromePath, [
+    '--remote-debugging-port=9222',
+    '--user-data-dir=C:\\Temp\\chrome-debug-profile',
+  ], { detached: true, stdio: 'ignore' }).unref();
+  for (let i = 0; i < 15; i++) {
+    await sleep(1000);
+    try { await getTabList(); console.log('Chrome ready'); return; } catch {}
+  }
+  throw new Error('Chrome did not start in time');
+}
 
 // ============================================================
 // 主逻辑
@@ -223,6 +247,7 @@ async function verifyOne(ws, cite) {
 }
 
 async function main() {
+  await ensureChrome();
   const tabs = await getTabList();
   
   // 找到或创建 CNKI 标签页

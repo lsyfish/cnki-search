@@ -7,6 +7,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 
 const KEYWORDS = process.argv[2] || '生活德育';
 const OUTPUT_FILE = path.join(__dirname, 'cnki_results.json');
@@ -68,10 +69,34 @@ async function evaluate(ws, expr, awaitPromise = false) {
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+async function ensureChrome() {
+  try {
+    await getTabList();
+    return; // 已在运行
+  } catch (e) {}
+  console.log('Chrome not detected, launching...');
+  const paths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+  const chromePath = paths.find(p => { try { fs.accessSync(p); return true; } catch { return false; } });
+  if (!chromePath) throw new Error('Chrome not found. Please launch manually with --remote-debugging-port=9222');
+  spawn(chromePath, [
+    '--remote-debugging-port=9222',
+    '--user-data-dir=C:\\Temp\\chrome-debug-profile',
+  ], { detached: true, stdio: 'ignore' }).unref();
+  for (let i = 0; i < 15; i++) {
+    await sleep(1000);
+    try { await getTabList(); console.log('Chrome ready'); return; } catch {}
+  }
+  throw new Error('Chrome did not start in time');
+}
+
 async function main() {
+  await ensureChrome();
   const tabs = await getTabList();
   const cnkiTab = tabs.find(t => t.url && t.url.includes('cnki.net') && t.type === 'page');
-  if (!cnkiTab) { console.error('No CNKI tab found'); process.exit(1); }
+  if (!cnkiTab) { console.error('No CNKI tab found — please open https://kns.cnki.net in Chrome'); process.exit(1); }
 
   const ws = await connectToTab(cnkiTab.webSocketDebuggerUrl);
   setupHandler(ws);

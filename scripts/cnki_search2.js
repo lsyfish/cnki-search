@@ -7,6 +7,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 const readline = require('readline');
+const { spawn } = require('child_process');
 
 const OUTPUT_FILE = 'd:\\论文\\cnki_results.json';
 
@@ -59,6 +60,29 @@ async function eval_(ws, expr) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+async function ensureChrome() {
+  try {
+    await getTabList();
+    return;
+  } catch (e) {}
+  console.log('Chrome not detected, launching...');
+  const paths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+  const chromePath = paths.find(p => { try { require('fs').accessSync(p); return true; } catch { return false; } });
+  if (!chromePath) throw new Error('Chrome not found. Please launch manually with --remote-debugging-port=9222');
+  spawn(chromePath, [
+    '--remote-debugging-port=9222',
+    '--user-data-dir=C:\\Temp\\chrome-debug-profile',
+  ], { detached: true, stdio: 'ignore' }).unref();
+  for (let i = 0; i < 15; i++) {
+    await sleep(1000);
+    try { await getTabList(); console.log('Chrome ready'); return; } catch {}
+  }
+  throw new Error('Chrome did not start in time');
+}
+
 function waitForEnter(prompt) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(resolve => rl.question(prompt, () => { rl.close(); resolve(); }));
@@ -74,8 +98,19 @@ async function waitForPageReady(ws, timeout = 15000) {
 }
 
 async function hasCaptcha(ws) {
-  return await eval_(ws, `
-    !!(document.querySelector('.tc-slider-normal') || 
+  return await eval_(ws, `(function() {
+    const el = document.querySelector('[class*="tencent-captcha-dy__content"]');
+    if (!el) return false;
+    const rect = el.getBoundingClientRect();
+    const inViewport = rect.width > 0 && rect.height > 0
+      && rect.top >= 0 && rect.left >= 0
+      && rect.bottom <= window.innerHeight && rect.right <= window.innerWidth;
+    if (!inViewport) return false;
+    const s = window.getComputedStyle(el);
+    return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+  })()
+  // legacy fallback
+  || !!(document.querySelector('.tc-slider-normal') ||
        document.querySelector('#tcaptcha_iframe') ||
        document.querySelector('[class*="slider"]') ||
        (document.body.textContent || '').includes('完成验证'))
@@ -127,9 +162,10 @@ async function extractResults(ws) {
 }
 
 async function main() {
+  await ensureChrome();
   const tabs = await getTabList();
   const cnkiTab = tabs.find(t => t.url && t.url.includes('cnki') && t.type === 'page');
-  if (!cnkiTab) { console.error('No CNKI tab'); process.exit(1); }
+  if (!cnkiTab) { console.error('No CNKI tab — please open https://kns.cnki.net in Chrome'); process.exit(1); }
 
   const ws = await connectToTab(cnkiTab.webSocketDebuggerUrl);
   setupHandler(ws);

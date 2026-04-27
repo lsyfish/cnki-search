@@ -1,5 +1,32 @@
 # cnki-search — CNKI 知网 CDP 自动化工具包
 
+<div align="center">
+
+![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A516-brightgreen?logo=node.js)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Platform](https://img.shields.io/badge/Platform-Chrome%20CDP-4285F4?logo=googlechrome)
+![CNKI](https://img.shields.io/badge/%E7%9F%A5%E7%BD%91-CNKI-E8002D)
+![Copilot Skill](https://img.shields.io/badge/GitHub%20Copilot-Skill-8957E5?logo=github)
+
+**通过 Chrome DevTools Protocol 驱动知网，无需 API Key，仅需一个已登录的 Chrome 窗口。**  
+**Drive CNKI via Chrome DevTools Protocol — no API key required, just an open Chrome window.**
+
+```
+Chrome (--remote-debugging-port=9222)
+        │
+        ▼  WebSocket CDP
+  cnki_*.js 脚本
+        │
+   ┌────┴────────────────┐
+   │  搜索 / 核查 / 诊断  │
+   └────┬────────────────┘
+        │
+   cnki_results.json
+   cnki_verify_results.json
+```
+
+</div>
+
 [English](#english) | [中文](#中文)
 
 ---

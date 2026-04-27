@@ -1,0 +1,9 @@
+{
+  "name": "cnki-search-scripts",
+  "version": "1.0.0",
+  "description": "CNKI CDP automation scripts",
+  "private": true,
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

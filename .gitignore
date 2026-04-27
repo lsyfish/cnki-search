@@ -1,0 +1,6 @@
+node_modules/
+cnki_results.json
+cnki_verify_results.json
+cnki_debug.html
+*.log
+.DS_Store
